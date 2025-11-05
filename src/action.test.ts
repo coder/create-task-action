@@ -374,14 +374,13 @@ describe("CoderTaskAction", () => {
 			input: inputs.coderTaskPrompt,
 		});
 
-		// Validate output against schema
-		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
-
-		// Verify specific values
-		expect(result.coderUsername).toBe("testuser");
-		expect(result.taskCreated).toBe(true);
-		expect(result.taskUrl).toContain("/tasks/testuser/");
-		expect(result.taskName).toBe(mockTask.name);
+		const parsedResult = ActionOutputsSchema.parse(result);
+		expect(parsedResult.coderUsername).toBe("testuser");
+		expect(parsedResult.taskCreated).toBe(true);
+		expect(parsedResult.taskUrl).toMatch(
+			/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+		);
+		expect(parsedResult.taskName).toBe(mockTask.name);
 	});
 
 	test("sends prompt to existing task", async () => {
@@ -419,14 +418,13 @@ describe("CoderTaskAction", () => {
 		);
 		expect(coderClient.mockCreateTask).not.toHaveBeenCalled();
 
-		// Validate output against schema
-		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
-
-		// Verify specific values
-		expect(result.taskCreated).toBe(false);
-		expect(result.coderUsername).toBe(mockUser.username);
-		expect(result.taskName).toBe(mockTask.name);
-		expect(result.taskUrl).toContain("/tasks/testuser/");
+		const parsedResult = ActionOutputsSchema.parse(result);
+		expect(parsedResult.taskCreated).toBe(false);
+		expect(parsedResult.coderUsername).toBe(mockUser.username);
+		expect(parsedResult.taskName).toBe(mockTask.name);
+		expect(parsedResult.taskUrl).toMatch(
+			/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+		);
 	});
 
 	test("errors without issue URL", async () => {
@@ -480,8 +478,13 @@ describe("CoderTaskAction", () => {
 		// Execute
 		const result = await action.run();
 
-		// Validate output against schema
-		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+		const parsedResult = ActionOutputsSchema.parse(result);
+		expect(parsedResult.coderUsername).toBe("testuser");
+		expect(parsedResult.taskCreated).toBe(true);
+		expect(parsedResult.taskUrl).toMatch(
+			/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+		);
+		expect(parsedResult.taskName).toBe(mockTask.name);
 
 		// Verify GitHub comment
 		expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
@@ -537,8 +540,13 @@ describe("CoderTaskAction", () => {
 		// Execute
 		const result = await action.run();
 
-		// Validate output against schema
-		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+		const parsedResult = ActionOutputsSchema.parse(result);
+		expect(parsedResult.coderUsername).toBe("testuser");
+		expect(parsedResult.taskCreated).toBe(true);
+		expect(parsedResult.taskUrl).toMatch(
+			/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+		);
+		expect(parsedResult.taskName).toBe(mockTask.name);
 
 		// Verify GitHub comment update
 		expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
@@ -699,8 +707,13 @@ describe("CoderTaskAction", () => {
 
 		const result = await action.run();
 
-		// Validate output against schema
-		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+		const parsedResult = ActionOutputsSchema.parse(result);
+		expect(parsedResult.coderUsername).toBe("testuser");
+		expect(parsedResult.taskCreated).toBe(true);
+		expect(parsedResult.taskUrl).toMatch(
+			/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+		);
+		expect(parsedResult.taskName).toBe("task-456"); // task name is based on issue number
 
 		expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -743,8 +756,13 @@ describe("CoderTaskAction", () => {
 			// Execute
 			const result = await action.run();
 
-			// Validate output against schema
-			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+			const parsedResult = ActionOutputsSchema.parse(result);
+			expect(parsedResult.coderUsername).toBe("testuser");
+			expect(parsedResult.taskCreated).toBe(true);
+			expect(parsedResult.taskUrl).toMatch(
+				/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+			);
+			expect(parsedResult.taskName).toBe(mockTask.name);
 
 			// Verify - should NOT have called comment APIs
 			expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
@@ -783,8 +801,13 @@ describe("CoderTaskAction", () => {
 			// Execute
 			const result = await action.run();
 
-			// Validate output against schema
-			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+			const parsedResult = ActionOutputsSchema.parse(result);
+			expect(parsedResult.coderUsername).toBe("testuser");
+			expect(parsedResult.taskCreated).toBe(true);
+			expect(parsedResult.taskUrl).toMatch(
+				/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+			);
+			expect(parsedResult.taskName).toBe(mockTask.name);
 
 			// Verify - should have called comment APIs
 			expect(octokit.rest.issues.listComments).toHaveBeenCalled();
@@ -822,8 +845,13 @@ describe("CoderTaskAction", () => {
 			// Execute
 			const result = await action.run();
 
-			// Validate output against schema
-			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+			const parsedResult = ActionOutputsSchema.parse(result);
+			expect(parsedResult.coderUsername).toBe("testuser");
+			expect(parsedResult.taskCreated).toBe(true);
+			expect(parsedResult.taskUrl).toMatch(
+				/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+			);
+			expect(parsedResult.taskName).toBe(mockTask.name);
 
 			// Verify - should have called comment APIs (default behavior)
 			expect(octokit.rest.issues.listComments).toHaveBeenCalled();
@@ -857,8 +885,13 @@ describe("CoderTaskAction", () => {
 			// Execute
 			const result = await action.run();
 
-			// Validate output against schema
-			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+			const parsedResult = ActionOutputsSchema.parse(result);
+			expect(parsedResult.coderUsername).toBe("testuser");
+			expect(parsedResult.taskCreated).toBe(false);
+			expect(parsedResult.taskUrl).toMatch(
+				/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+			);
+			expect(parsedResult.taskName).toBe(mockTask.name);
 
 			// Verify - should NOT have called comment APIs
 			expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
