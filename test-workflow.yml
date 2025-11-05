@@ -41,19 +41,19 @@ jobs:
           
           # Verify outputs. These need to be kept in sync with test-event.json
           if [[ "${TASK_CREATED}" != "true" ]]; then
-            echo "ERROR: task-created output is empty"
+            echo "ERROR: task-created output should be true"
             exit 1
           fi
           if [[ "${TASK_NAME}" != "integration-test-1" ]]; then
-            echo "ERROR: task-name output is empty"
+            echo "ERROR: task-name output mismatch"
             exit 1
           fi
-          if [[ "${TASK_URL}" != "https://coder.test/tasks/testuser/*" ]]; then
-            echo "ERROR: task-url output is empty"
+          if [[ ! "${TASK_URL}" =~ /tasks/testuser/[a-f0-9-]+$ ]]; then
+            echo "ERROR: task-url output does not match expected pattern"
             exit 1
           fi
           if [[ "${CODER_USERNAME}" != "testuser" ]]; then
-            echo "ERROR: coder-username output is empty"
+            echo "ERROR: coder-username output mismatch"
             exit 1
           fi
           
@@ -115,5 +115,6 @@ jobs:
             echo "  Create: ${PREV_CODER_USERNAME}"
             echo "  Update: ${CODER_USERNAME}"
             exit 1
+          fi
           
           echo "✅ Update task behavior verified"
