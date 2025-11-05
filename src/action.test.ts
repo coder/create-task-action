@@ -1,6 +1,7 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { CoderTaskAction } from "./action";
 import type { Octokit } from "./action";
+import { ActionOutputsSchema } from "./schemas";
 import {
 	MockCoderClient,
 	createMockOctokit,
@@ -360,7 +361,7 @@ describe("CoderTaskAction", () => {
 		// Execute
 		const result = await action.run();
 
-		// Verify
+		// Verify API calls
 		expect(coderClient.mockGetCoderUserByGithubID).toHaveBeenCalledWith(12345);
 		expect(coderClient.mockGetTask).toHaveBeenCalledWith(
 			mockUser.username,
@@ -372,9 +373,15 @@ describe("CoderTaskAction", () => {
 			template_version_preset_id: undefined,
 			input: inputs.coderTaskPrompt,
 		});
+
+		// Validate output against schema
+		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+
+		// Verify specific values
 		expect(result.coderUsername).toBe("testuser");
 		expect(result.taskCreated).toBe(true);
 		expect(result.taskUrl).toContain("/tasks/testuser/");
+		expect(result.taskName).toBe(mockTask.name);
 	});
 
 	test("sends prompt to existing task", async () => {
@@ -400,7 +407,7 @@ describe("CoderTaskAction", () => {
 		// Execute
 		const result = await action.run();
 
-		// Verify
+		// Verify API calls
 		expect(coderClient.mockGetTask).toHaveBeenCalledWith(
 			mockUser.username,
 			mockTask.name,
@@ -411,7 +418,15 @@ describe("CoderTaskAction", () => {
 			inputs.coderTaskPrompt,
 		);
 		expect(coderClient.mockCreateTask).not.toHaveBeenCalled();
+
+		// Validate output against schema
+		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+
+		// Verify specific values
 		expect(result.taskCreated).toBe(false);
+		expect(result.coderUsername).toBe(mockUser.username);
+		expect(result.taskName).toBe(mockTask.name);
+		expect(result.taskUrl).toContain("/tasks/testuser/");
 	});
 
 	test("errors without issue URL", async () => {
@@ -463,9 +478,12 @@ describe("CoderTaskAction", () => {
 		);
 
 		// Execute
-		await action.run();
+		const result = await action.run();
 
-		// Verify
+		// Validate output against schema
+		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+
+		// Verify GitHub comment
 		expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				owner: "owner",
@@ -517,9 +535,12 @@ describe("CoderTaskAction", () => {
 		);
 
 		// Execute
-		await action.run();
+		const result = await action.run();
 
-		// Verify
+		// Validate output against schema
+		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+
+		// Verify GitHub comment update
 		expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				owner: "owner",
@@ -676,7 +697,11 @@ describe("CoderTaskAction", () => {
 			inputs,
 		);
 
-		await action.run();
+		const result = await action.run();
+
+		// Validate output against schema
+		expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
+
 		expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				owner: "different-owner",
@@ -716,7 +741,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			// Validate output against schema
+			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
 
 			// Verify - should NOT have called comment APIs
 			expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
@@ -753,7 +781,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			// Validate output against schema
+			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
 
 			// Verify - should have called comment APIs
 			expect(octokit.rest.issues.listComments).toHaveBeenCalled();
@@ -789,7 +820,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			// Validate output against schema
+			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
 
 			// Verify - should have called comment APIs (default behavior)
 			expect(octokit.rest.issues.listComments).toHaveBeenCalled();
@@ -821,7 +855,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			// Validate output against schema
+			expect(() => ActionOutputsSchema.parse(result)).not.toThrow();
 
 			// Verify - should NOT have called comment APIs
 			expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
