@@ -22708,11 +22708,11 @@ var require_github = __commonJS((exports2) => {
 });
 
 // src/index.ts
-var core2 = __toESM(require_core(), 1);
-var github = __toESM(require_github(), 1);
+var core2 = __toESM(require_core());
+var github = __toESM(require_github());
 
 // src/action.ts
-var core = __toESM(require_core(), 1);
+var core = __toESM(require_core());
 
 // node_modules/zod/v3/external.js
 var exports_external = {};
@@ -27054,7 +27054,7 @@ async function main() {
     core2.setOutput("coder-username", outputs.coderUsername);
     core2.setOutput("task-name", outputs.taskName);
     core2.setOutput("task-url", outputs.taskUrl);
-    core2.setOutput("task-exists", outputs.taskCreated.toString());
+    core2.setOutput("task-created", outputs.taskCreated.toString());
     core2.debug("Action completed successfully");
     core2.debug(`Outputs: ${JSON.stringify(outputs, null, 2)}`);
   } catch (error2) {

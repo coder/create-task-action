@@ -49,7 +49,7 @@ async function main() {
 		core.setOutput("coder-username", outputs.coderUsername);
 		core.setOutput("task-name", outputs.taskName);
 		core.setOutput("task-url", outputs.taskUrl);
-		core.setOutput("task-exists", outputs.taskCreated.toString());
+		core.setOutput("task-created", outputs.taskCreated.toString());
 
 		core.debug("Action completed successfully");
 		core.debug(`Outputs: ${JSON.stringify(outputs, null, 2)}`);
