@@ -22708,11 +22708,11 @@ var require_github = __commonJS((exports2) => {
 });
 
 // src/index.ts
-var core2 = __toESM(require_core());
-var github = __toESM(require_github());
+var core2 = __toESM(require_core(), 1);
+var github = __toESM(require_github(), 1);
 
 // src/action.ts
-var core = __toESM(require_core());
+var core = __toESM(require_core(), 1);
 
 // node_modules/zod/v3/external.js
 var exports_external = {};
