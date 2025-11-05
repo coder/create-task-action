@@ -1,0 +1,20 @@
+{
+	"action": "opened",
+	"issue": {
+		"number": 1,
+		"html_url": "https://github.com/test-org/test-repo/issues/1",
+		"title": "Integration test issue",
+		"body": "This is a test issue for integration testing",
+		"user": {
+			"login": "testuser",
+			"id": 123456789
+		}
+	},
+	"repository": {
+		"name": "test-repo",
+		"full_name": "test-org/test-repo",
+		"owner": {
+			"login": "test-org"
+		}
+	}
+}

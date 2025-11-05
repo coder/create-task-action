@@ -1,0 +1,83 @@
+name: Integration Test
+on: issues
+
+jobs:
+  test-task-creation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test action - Create new task
+        id: create_task
+        uses: ./
+        with:
+          coder-url: ${{ secrets.CODER_URL }}
+          coder-token: ${{ secrets.CODER_TOKEN }}
+          coder-organization: ${{ secrets.CODER_ORGANIZATION }}
+          coder-template-name: tasks-docker
+          coder-task-name-prefix: integration-test
+          coder-task-prompt: "Test prompt from integration test - create"
+          github-user-id: ${{ secrets.GITHUB_USER_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-issue-url: ${{ github.event.issue.html_url }}
+          comment-on-issue: "false"
+      
+      - name: Verify outputs from create
+        run: |
+          echo "Task created: ${{ steps.create_task.outputs.task-created }}"
+          echo "Task name: ${{ steps.create_task.outputs.task-name }}"
+          echo "Task URL: ${{ steps.create_task.outputs.task-url }}"
+          echo "Coder username: ${{ steps.create_task.outputs.coder-username }}"
+          
+          # Verify outputs are not empty
+          if [ -z "${{ steps.create_task.outputs.task-name }}" ]; then
+            echo "ERROR: task-name output is empty"
+            exit 1
+          fi
+          if [ -z "${{ steps.create_task.outputs.task-url }}" ]; then
+            echo "ERROR: task-url output is empty"
+            exit 1
+          fi
+          if [ -z "${{ steps.create_task.outputs.coder-username }}" ]; then
+            echo "ERROR: coder-username output is empty"
+            exit 1
+          fi
+          
+          echo "✅ All outputs present"
+      
+      - name: Test action - Update existing task
+        id: update_task
+        uses: ./
+        with:
+          coder-url: ${{ secrets.CODER_URL }}
+          coder-token: ${{ secrets.CODER_TOKEN }}
+          coder-organization: ${{ secrets.CODER_ORGANIZATION }}
+          coder-template-name: tasks-docker
+          coder-task-name-prefix: integration-test
+          coder-task-prompt: "Test prompt from integration test - update"
+          github-user-id: ${{ secrets.GITHUB_USER_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-issue-url: ${{ github.event.issue.html_url }}
+          comment-on-issue: "false"
+      
+      - name: Verify outputs from update
+        run: |
+          echo "Task created: ${{ steps.update_task.outputs.task-created }}"
+          echo "Task name: ${{ steps.update_task.outputs.task-name }}"
+          
+          # Verify task was not created (should be false for update)
+          if [ "${{ steps.update_task.outputs.task-created }}" != "false" ]; then
+            echo "ERROR: Expected task-created to be false for update, got: ${{ steps.update_task.outputs.task-created }}"
+            exit 1
+          fi
+          
+          # Verify task names match (same task)
+          if [ "${{ steps.create_task.outputs.task-name }}" != "${{ steps.update_task.outputs.task-name }}" ]; then
+            echo "ERROR: Task names don't match"
+            echo "  Create: ${{ steps.create_task.outputs.task-name }}"
+            echo "  Update: ${{ steps.update_task.outputs.task-name }}"
+            exit 1
+          fi
+          
+          echo "✅ Update task behavior verified"
