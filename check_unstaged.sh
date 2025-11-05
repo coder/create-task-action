@@ -23,4 +23,5 @@ if [[ "$FILES" != "" ]]; then
 
 	echo
 	echo "ERROR: Unstaged changes, see above for details."
+	exit 1
 fi
