@@ -3,10 +3,14 @@ on: issues
 
 jobs:
   test-task-creation:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - name: Test action - Create new task
         id: create_task
@@ -24,27 +28,36 @@ jobs:
           comment-on-issue: "false"
       
       - name: Verify outputs from create
+        env:
+          TASK_CREATED: ${{ steps.create_task.outputs.task-created }}
+          TASK_NAME: ${{ steps.create_task.outputs.task-name }}
+          TASK_URL: ${{ steps.create_task.outputs.task-url }}
+          CODER_USERNAME: ${{ steps.create_task.outputs.coder-username }}
         run: |
-          echo "Task created: ${{ steps.create_task.outputs.task-created }}"
-          echo "Task name: ${{ steps.create_task.outputs.task-name }}"
-          echo "Task URL: ${{ steps.create_task.outputs.task-url }}"
-          echo "Coder username: ${{ steps.create_task.outputs.coder-username }}"
+          echo "Task created: ${TASK_CREATED}"
+          echo "Task name: ${TASK_NAME}"
+          echo "Task URL: ${TASK_URL}"
+          echo "Coder username: ${CODER_USERNAME}"
           
-          # Verify outputs are not empty
-          if [ -z "${{ steps.create_task.outputs.task-name }}" ]; then
+          # Verify outputs. These need to be kept in sync with test-event.json
+          if [[ "${TASK_CREATED}" != "true" ]]; then
+            echo "ERROR: task-created output is empty"
+            exit 1
+          fi
+          if [[ "${TASK_NAME}" != "integration-test-1" ]]; then
             echo "ERROR: task-name output is empty"
             exit 1
           fi
-          if [ -z "${{ steps.create_task.outputs.task-url }}" ]; then
+          if [[ "${TASK_URL}" != "https://coder.test/tasks/testuser/*" ]]; then
             echo "ERROR: task-url output is empty"
             exit 1
           fi
-          if [ -z "${{ steps.create_task.outputs.coder-username }}" ]; then
+          if [[ "${CODER_USERNAME}" != "testuser" ]]; then
             echo "ERROR: coder-username output is empty"
             exit 1
           fi
           
-          echo "✅ All outputs present"
+          echo "✅ All outputs verified"
       
       - name: Test action - Update existing task
         id: update_task
@@ -62,22 +75,45 @@ jobs:
           comment-on-issue: "false"
       
       - name: Verify outputs from update
+        env:
+          PREV_TASK_NAME: ${{ steps.create_task.outputs.task-name }}
+          PREV_TASK_URL: ${{ steps.create_task.outputs.task-url }}
+          PREV_CODER_USERNAME: ${{ steps.create_task.outputs.coder-username }}
+          TASK_CREATED: ${{ steps.update_task.outputs.task-created }}
+          TASK_NAME: ${{ steps.update_task.outputs.task-name }}
+          TASK_URL: ${{ steps.update_task.outputs.task-url }}
+          CODER_USERNAME: ${{ steps.update_task.outputs.coder-username }}
         run: |
-          echo "Task created: ${{ steps.update_task.outputs.task-created }}"
-          echo "Task name: ${{ steps.update_task.outputs.task-name }}"
+          echo "Task created: ${TASK_CREATED}"
+          echo "Task name: ${TASK_NAME}"
+          echo "Task URL: ${TASK_URL}"
+          echo "Coder username: ${CODER_USERNAME}"
           
           # Verify task was not created (should be false for update)
-          if [ "${{ steps.update_task.outputs.task-created }}" != "false" ]; then
-            echo "ERROR: Expected task-created to be false for update, got: ${{ steps.update_task.outputs.task-created }}"
+          if [[ "${TASK_CREATED}" != "false" ]]; then
+            echo "ERROR: Expected task-created to be false for update, got: ${TASK_CREATED}"
             exit 1
           fi
           
-          # Verify task names match (same task)
-          if [ "${{ steps.create_task.outputs.task-name }}" != "${{ steps.update_task.outputs.task-name }}" ]; then
+          # Verify other outputs match previous
+          if [[ "${PREV_TASK_NAME}" != "${TASK_NAME}" ]]; then
             echo "ERROR: Task names don't match"
-            echo "  Create: ${{ steps.create_task.outputs.task-name }}"
-            echo "  Update: ${{ steps.update_task.outputs.task-name }}"
+            echo "  Create: ${PREV_TASK_NAME}"
+            echo "  Update: ${TASK_NAME}"
             exit 1
           fi
+
+          if [[ "${PREV_TASK_URL}" != "${TASK_URL}" ]]; then
+            echo "ERROR: Task URLs don't match"
+            echo "  Create: ${PREV_TASK_URL}"
+            echo "  Update: ${TASK_URL}"
+            exit 1
+          fi
+
+          if [[ "${PREV_CODER_USERNAME}" != "${CODER_USERNAME}" ]]; then
+            echo "ERROR: Coder usernames don't match"
+            echo "  Create: ${PREV_CODER_USERNAME}"
+            echo "  Update: ${CODER_USERNAME}"
+            exit 1
           
           echo "✅ Update task behavior verified"
