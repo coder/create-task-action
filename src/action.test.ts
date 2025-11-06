@@ -1,6 +1,7 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { CoderTaskAction } from "./action";
 import type { Octokit } from "./action";
+import { ActionOutputsSchema, type ActionOutputs } from "./schemas";
 import {
 	MockCoderClient,
 	createMockOctokit,
@@ -360,7 +361,7 @@ describe("CoderTaskAction", () => {
 		// Execute
 		const result = await action.run();
 
-		// Verify
+		// Verify API calls
 		expect(coderClient.mockGetCoderUserByGithubID).toHaveBeenCalledWith(12345);
 		expect(coderClient.mockGetTask).toHaveBeenCalledWith(
 			mockUser.username,
@@ -372,9 +373,9 @@ describe("CoderTaskAction", () => {
 			template_version_preset_id: undefined,
 			input: inputs.coderTaskPrompt,
 		});
-		expect(result.coderUsername).toBe("testuser");
-		expect(result.taskCreated).toBe(true);
-		expect(result.taskUrl).toContain("/tasks/testuser/");
+
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult, true);
 	});
 
 	test("sends prompt to existing task", async () => {
@@ -400,7 +401,7 @@ describe("CoderTaskAction", () => {
 		// Execute
 		const result = await action.run();
 
-		// Verify
+		// Verify API calls
 		expect(coderClient.mockGetTask).toHaveBeenCalledWith(
 			mockUser.username,
 			mockTask.name,
@@ -411,7 +412,9 @@ describe("CoderTaskAction", () => {
 			inputs.coderTaskPrompt,
 		);
 		expect(coderClient.mockCreateTask).not.toHaveBeenCalled();
-		expect(result.taskCreated).toBe(false);
+
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult);
 	});
 
 	test("errors without issue URL", async () => {
@@ -463,9 +466,12 @@ describe("CoderTaskAction", () => {
 		);
 
 		// Execute
-		await action.run();
+		const result = await action.run();
 
-		// Verify
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult, true);
+
+		// Verify GitHub comment
 		expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				owner: "owner",
@@ -517,9 +523,12 @@ describe("CoderTaskAction", () => {
 		);
 
 		// Execute
-		await action.run();
+		const result = await action.run();
 
-		// Verify
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult, true);
+
+		// Verify GitHub comment update
 		expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				owner: "owner",
@@ -676,7 +685,11 @@ describe("CoderTaskAction", () => {
 			inputs,
 		);
 
-		await action.run();
+		const result = await action.run();
+
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult, true, "task-456");
+
 		expect(octokit.rest.issues.createComment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				owner: "different-owner",
@@ -716,7 +729,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			const parsedResult = ActionOutputsSchema.parse(result);
+			assertActionOutputs(parsedResult, true);
 
 			// Verify - should NOT have called comment APIs
 			expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
@@ -753,7 +769,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			const parsedResult = ActionOutputsSchema.parse(result);
+			assertActionOutputs(parsedResult, true);
 
 			// Verify - should have called comment APIs
 			expect(octokit.rest.issues.listComments).toHaveBeenCalled();
@@ -789,7 +808,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			const parsedResult = ActionOutputsSchema.parse(result);
+			assertActionOutputs(parsedResult, true);
 
 			// Verify - should have called comment APIs (default behavior)
 			expect(octokit.rest.issues.listComments).toHaveBeenCalled();
@@ -821,7 +843,10 @@ describe("CoderTaskAction", () => {
 			);
 
 			// Execute
-			await action.run();
+			const result = await action.run();
+
+			const parsedResult = ActionOutputsSchema.parse(result);
+			assertActionOutputs(parsedResult);
 
 			// Verify - should NOT have called comment APIs
 			expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
@@ -830,3 +855,16 @@ describe("CoderTaskAction", () => {
 		});
 	});
 });
+
+function assertActionOutputs(
+	outputs: ActionOutputs,
+	create = false,
+	taskName = mockTask.name.toString(),
+) {
+	expect(outputs.coderUsername).toBe(mockUser.username);
+	expect(outputs.taskCreated).toBe(create);
+	expect(outputs.taskUrl).toMatch(
+		/^https:\/\/coder\.test\/tasks\/testuser\/[a-f0-9-]+$/,
+	);
+	expect(outputs.taskName).toBe(taskName);
+}
