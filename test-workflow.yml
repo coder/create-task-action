@@ -11,7 +11,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      
+
       - name: Test action - Create new task
         id: create_task
         uses: ./
@@ -26,7 +26,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-issue-url: ${{ github.event.issue.html_url }}
           comment-on-issue: "false"
-      
+
       - name: Verify outputs from create
         env:
           TASK_CREATED: ${{ steps.create_task.outputs.task-created }}
@@ -38,27 +38,27 @@ jobs:
           echo "Task name: ${TASK_NAME}"
           echo "Task URL: ${TASK_URL}"
           echo "Coder username: ${CODER_USERNAME}"
-          
+
           # Verify outputs. These need to be kept in sync with test-event.json
-          if [[ "${TASK_CREATED}" != "true" ]]; then
+          if [[ ${TASK_CREATED} != "true" ]]; then
             echo "ERROR: task-created output should be true"
             exit 1
           fi
-          if [[ "${TASK_NAME}" != "integration-test-1" ]]; then
+          if [[ ${TASK_NAME} != "integration-test-1" ]]; then
             echo "ERROR: task-name output mismatch"
             exit 1
           fi
-          if [[ ! "${TASK_URL}" =~ /tasks/testuser/[a-f0-9-]+$ ]]; then
-            echo "ERROR: task-url output does not match expected pattern"
-            exit 1
-          fi
-          if [[ "${CODER_USERNAME}" != "testuser" ]]; then
+          if [[ ${CODER_USERNAME} != "testuser" ]]; then
             echo "ERROR: coder-username output mismatch"
             exit 1
           fi
-          
+          if [[ ! ${TASK_URL} =~ /tasks/${CODER_USERNAME}/[a-f0-9]+$ ]]; then
+            echo "ERROR: task-url output does not match expected format"
+            exit 1
+          fi
+
           echo "✅ All outputs verified"
-      
+
       - name: Test action - Update existing task
         id: update_task
         uses: ./
@@ -73,7 +73,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-issue-url: ${{ github.event.issue.html_url }}
           comment-on-issue: "false"
-      
+
       - name: Verify outputs from update
         env:
           PREV_TASK_NAME: ${{ steps.create_task.outputs.task-name }}
@@ -88,33 +88,33 @@ jobs:
           echo "Task name: ${TASK_NAME}"
           echo "Task URL: ${TASK_URL}"
           echo "Coder username: ${CODER_USERNAME}"
-          
+
           # Verify task was not created (should be false for update)
           if [[ "${TASK_CREATED}" != "false" ]]; then
             echo "ERROR: Expected task-created to be false for update, got: ${TASK_CREATED}"
             exit 1
           fi
-          
+
           # Verify other outputs match previous
-          if [[ "${PREV_TASK_NAME}" != "${TASK_NAME}" ]]; then
+          if [[ ${PREV_TASK_NAME} != "${TASK_NAME}" ]]; then
             echo "ERROR: Task names don't match"
             echo "  Create: ${PREV_TASK_NAME}"
             echo "  Update: ${TASK_NAME}"
             exit 1
           fi
 
-          if [[ "${PREV_TASK_URL}" != "${TASK_URL}" ]]; then
+          if [[ ${PREV_TASK_URL} != "${TASK_URL}" ]]; then
             echo "ERROR: Task URLs don't match"
             echo "  Create: ${PREV_TASK_URL}"
             echo "  Update: ${TASK_URL}"
             exit 1
           fi
 
-          if [[ "${PREV_CODER_USERNAME}" != "${CODER_USERNAME}" ]]; then
+          if [[ ${PREV_CODER_USERNAME} != "${CODER_USERNAME}" ]]; then
             echo "ERROR: Coder usernames don't match"
             echo "  Create: ${PREV_CODER_USERNAME}"
             echo "  Update: ${CODER_USERNAME}"
             exit 1
           fi
-          
+
           echo "✅ Update task behavior verified"
