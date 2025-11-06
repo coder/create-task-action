@@ -52,7 +52,7 @@ jobs:
             echo "ERROR: coder-username output mismatch"
             exit 1
           fi
-          if [[ ! ${TASK_URL} =~ /tasks/${CODER_USERNAME}/[a-f0-9]+$ ]]; then
+          if [[ ! ${TASK_URL} =~ /tasks/${CODER_USERNAME}/[a-f0-9-]+$ ]]; then
             echo "ERROR: task-url output does not match expected format"
             exit 1
           fi
