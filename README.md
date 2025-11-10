@@ -65,12 +65,12 @@ yq -r '.inputs | to_entries[] | "| \(.key) | \(.value.description) | \(.value.re
 | coder-task-prompt      | Prompt/instructions to send to the task | true     | -         |
 | coder-token            | Coder session token for authentication  | true     | -         |
 | coder-url              | Coder deployment URL                    | true     | -         |
-| coder-task-name-prefix | Prefix for task name                    | true     | -         |
 | coder-template-name    | Coder template to use for workspace     | true     | -         |
 | github-issue-url       | GitHub issue URL to link this task to   | true     | -         |
 | github-token           | GitHub token for API operations         | true     | -         |
 | github-user-id         | GitHub user ID to create task for       | true     | -         |
 | coder-organization     | Coder organization name                 | false    | "default" |
+| coder-task-name-prefix | Prefix for task name                    | false    | "gh"      |
 | coder-template-preset  | Template preset to use (optional)       | false    | -         |
 | comment-on-issue       | Whether to comment on the GitHub issue  | false    | true      |
 
