@@ -60,19 +60,19 @@ jobs:
 yq -r '.inputs | to_entries[] | "| \(.key) | \(.value.description) | \(.value.required // false ) | \(.value.default // \"-\") |"' action.yaml
 -->
 
-| Name                   | Description                             | Required | Default |
-| ---------------------- | --------------------------------------- | -------- | ------- |
-| coder-task-prompt      | Prompt/instructions to send to the task | true     | -       |
-| coder-token            | Coder session token for authentication  | true     | -       |
-| coder-url              | Coder deployment URL                    | true     | -       |
-| coder-organization     | Coder organization name                 | true     | -       |
-| coder-task-name-prefix | Prefix for task name                    | true     | -       |
-| coder-template-name    | Coder template to use for workspace     | true     | -       |
-| github-issue-url       | GitHub issue URL to link this task to   | true     | -       |
-| github-token           | GitHub token for API operations         | true     | -       |
-| github-user-id         | GitHub user ID to create task for       | true     | -       |
-| coder-template-preset  | Template preset to use (optional)       | false    | -       |
-| comment-on-issue       | Whether to comment on the GitHub issue  | false    | true    |
+| Name                   | Description                             | Required | Default   |
+| ---------------------- | --------------------------------------- | -------- | --------- |
+| coder-task-prompt      | Prompt/instructions to send to the task | true     | -         |
+| coder-token            | Coder session token for authentication  | true     | -         |
+| coder-url              | Coder deployment URL                    | true     | -         |
+| coder-task-name-prefix | Prefix for task name                    | true     | -         |
+| coder-template-name    | Coder template to use for workspace     | true     | -         |
+| github-issue-url       | GitHub issue URL to link this task to   | true     | -         |
+| github-token           | GitHub token for API operations         | true     | -         |
+| github-user-id         | GitHub user ID to create task for       | true     | -         |
+| coder-organization     | Coder organization name                 | false    | "default" |
+| coder-template-preset  | Template preset to use (optional)       | false    | -         |
+| comment-on-issue       | Whether to comment on the GitHub issue  | false    | true      |
 
 ## Outputs
 

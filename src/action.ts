@@ -119,6 +119,7 @@ export class CoderTaskAction {
 				"either taskName or both taskNamePrefix and issueURL must be provided",
 			);
 		}
+		core.info(`Coder organization: ${this.inputs.coderOrganization}`);
 		const taskNameString = `${this.inputs.coderTaskNamePrefix}-${githubIssueNumber}`;
 		const taskName = TaskNameSchema.parse(taskNameString);
 		core.info(`Coder Task name: ${taskName}`);
