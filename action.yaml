@@ -15,14 +15,6 @@ inputs:
     description: "Coder deployment URL"
     required: true
 
-  coder-organization:
-    description: "Coder organization name"
-    required: true
-
-  coder-task-name-prefix:
-    description: "Prefix for task name"
-    required: true
-
   coder-template-name:
     description: "Coder template to use for workspace"
     required: true
@@ -40,6 +32,16 @@ inputs:
     required: true
 
   # Optional inputs
+  coder-organization:
+    description: "Coder organization name"
+    required: false
+    default: "default"
+
+  coder-task-name-prefix:
+    description: "Prefix for task name"
+    required: false
+    default: "gh"
+
   coder-template-preset:
     description: "Template preset to use (optional)"
     required: false
