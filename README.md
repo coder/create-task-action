@@ -35,12 +35,12 @@ permissions:
   issues: write
 
 jobs:
-  start-coder-task:
+  coder-create-task:
     runs-on: ubuntu-latest
     if: github.event.label.name == 'coder'
     steps:
-      - name: Start Coder Task
-        uses: coder/start-coder-task@v0.0.2
+      - name: Coder Create Task
+        uses: coder/create-task-action@v0
         with:
           coder-url: ${{ secrets.CODER_URL }}
           coder-token: ${{ secrets.CODER_TOKEN }}
