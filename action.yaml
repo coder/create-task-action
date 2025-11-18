@@ -1,5 +1,6 @@
 name: "Create Coder Task"
-description: "Create a Coder task for a GitHub user, with support for issue commenting"
+description: "Create a Coder Task for a GitHub user, with support for issue commenting"
+author: "Coder Technologies Inc. <https://coder.com>"
 
 inputs:
   # Required inputs
