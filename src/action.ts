@@ -199,7 +199,7 @@ export class CoderTaskAction {
 			);
 			core.info("Coder Task: Prompt sent successfully");
 			return {
-				coderUsername: coderUsername,
+				coderUsername,
 				taskName: existingTask.name,
 				taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
 				taskCreated: false,
@@ -239,8 +239,8 @@ export class CoderTaskAction {
 			core.info(`Skipping comment on issue (commentOnIssue is false)`);
 		}
 		return {
-			coderUsername: coderUsername,
-			taskName: taskName,
+			coderUsername,
+			taskName,
 			taskUrl,
 			taskCreated: true,
 		};

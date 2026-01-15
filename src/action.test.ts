@@ -448,6 +448,23 @@ describe("CoderTaskAction", () => {
 		assertActionOutputs(parsedResult, true);
 	});
 
+	test("throws error when neither coder-username nor github-user-id is provided", async () => {
+		const inputs = createMockInputs({
+			githubUserID: undefined,
+			coderUsername: undefined,
+		});
+		const action = new CoderTaskAction(
+			coderClient,
+			octokit as unknown as Octokit,
+			inputs,
+		);
+
+		// Execute & Verify
+		expect(action.run()).rejects.toThrow(
+			"Either coder-username or github-user-id must be provided",
+		);
+	});
+
 	test("sends prompt to existing task", async () => {
 		// Setup
 		coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
