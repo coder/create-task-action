@@ -22708,11 +22708,11 @@ var require_github = __commonJS((exports2) => {
 });
 
 // src/index.ts
-var core2 = __toESM(require_core(), 1);
-var github = __toESM(require_github(), 1);
+var core2 = __toESM(require_core());
+var github = __toESM(require_github());
 
 // src/action.ts
-var core = __toESM(require_core(), 1);
+var core = __toESM(require_core());
 
 // node_modules/zod/v3/external.js
 var exports_external = {};
@@ -26918,13 +26918,22 @@ class CoderTaskAction {
     }
   }
   async run() {
-    core.info(`GitHub user ID: ${this.inputs.githubUserID}`);
-    const coderUser = await this.coder.getCoderUserByGitHubId(this.inputs.githubUserID);
+    let coderUsername;
+    if (this.inputs.coderUsername) {
+      core.info(`Using provided Coder username: ${this.inputs.coderUsername}`);
+      coderUsername = this.inputs.coderUsername;
+    } else if (this.inputs.githubUserID) {
+      core.info(`Looking up Coder user by GitHub user ID: ${this.inputs.githubUserID}`);
+      const coderUser = await this.coder.getCoderUserByGitHubId(this.inputs.githubUserID);
+      coderUsername = coderUser.username;
+    } else {
+      throw new Error("Either coder-username or github-user-id must be provided");
+    }
     const { githubOrg, githubRepo, githubIssueNumber } = this.parseGithubIssueURL();
     core.info(`GitHub owner: ${githubOrg}`);
     core.info(`GitHub repo: ${githubRepo}`);
     core.info(`GitHub issue number: ${githubIssueNumber}`);
-    core.info(`Coder username: ${coderUser.username}`);
+    core.info(`Coder username: ${coderUsername}`);
     if (!this.inputs.coderTaskNamePrefix || !this.inputs.githubIssueURL) {
       throw new Error("either taskName or both taskNamePrefix and issueURL must be provided");
     }
@@ -26956,20 +26965,20 @@ class CoderTaskAction {
       throw new Error(`Preset ${this.inputs.coderTemplatePreset} not found`);
     }
     core.info(`Coder Template: Preset ID: ${presetID}`);
-    const existingTask = await this.coder.getTask(coderUser.username, taskName);
+    const existingTask = await this.coder.getTask(coderUsername, taskName);
     if (existingTask) {
       core.info(`Coder Task: already exists: ${existingTask.name} (id: ${existingTask.id} status: ${existingTask.status})`);
       if (existingTask.status !== "active") {
         core.info(`Coder Task: waiting for task ${existingTask.name} to become active...`);
-        await this.coder.waitForTaskActive(coderUser.username, existingTask.id, core.debug, 1200000);
+        await this.coder.waitForTaskActive(coderUsername, existingTask.id, core.debug, 1200000);
       }
       core.info("Coder Task: Sending prompt to existing task...");
-      await this.coder.sendTaskInput(coderUser.username, existingTask.id, this.inputs.coderTaskPrompt);
+      await this.coder.sendTaskInput(coderUsername, existingTask.id, this.inputs.coderTaskPrompt);
       core.info("Coder Task: Prompt sent successfully");
       return {
-        coderUsername: coderUser.username,
+        coderUsername,
         taskName: existingTask.name,
-        taskUrl: this.generateTaskUrl(coderUser.username, existingTask.id),
+        taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
         taskCreated: false
       };
     }
@@ -26980,9 +26989,9 @@ class CoderTaskAction {
       template_version_preset_id: presetID,
       input: this.inputs.coderTaskPrompt
     };
-    const createdTask = await this.coder.createTask(coderUser.username, req);
+    const createdTask = await this.coder.createTask(coderUsername, req);
     core.info(`Coder Task: created successfully (status: ${createdTask.status})`);
-    const taskUrl = this.generateTaskUrl(coderUser.username, createdTask.id);
+    const taskUrl = this.generateTaskUrl(coderUsername, createdTask.id);
     core.info(`Coder Task: URL: ${taskUrl}`);
     if (this.inputs.commentOnIssue) {
       core.info(`Commenting on issue ${githubOrg}/${githubRepo}#${githubIssueNumber}`);
@@ -26992,7 +27001,7 @@ class CoderTaskAction {
       core.info(`Skipping comment on issue (commentOnIssue is false)`);
     }
     return {
-      coderUsername: coderUser.username,
+      coderUsername,
       taskName,
       taskUrl,
       taskCreated: true
@@ -27008,7 +27017,8 @@ var ActionInputsSchema = exports_external.object({
   coderTemplateName: exports_external.string().min(1),
   githubIssueURL: exports_external.string().url(),
   githubToken: exports_external.string(),
-  githubUserID: exports_external.number().min(1),
+  githubUserID: exports_external.number().min(1).optional(),
+  coderUsername: exports_external.string().min(1).optional(),
   coderOrganization: exports_external.string().min(1).optional().default("default"),
   coderTaskNamePrefix: exports_external.string().min(1).optional().default("gh"),
   coderTemplatePreset: exports_external.string().optional(),
@@ -27024,6 +27034,8 @@ var ActionOutputsSchema = exports_external.object({
 // src/index.ts
 async function main() {
   try {
+    const githubUserIdInput = core2.getInput("github-user-id");
+    const githubUserID = githubUserIdInput ? Number.parseInt(githubUserIdInput, 10) : undefined;
     const inputs = ActionInputsSchema.parse({
       coderURL: core2.getInput("coder-url", { required: true }),
       coderToken: core2.getInput("coder-token", { required: true }),
@@ -27039,7 +27051,8 @@ async function main() {
       }),
       githubIssueURL: core2.getInput("github-issue-url", { required: true }),
       githubToken: core2.getInput("github-token", { required: true }),
-      githubUserID: Number.parseInt(core2.getInput("github-user-id", { required: true }), 10),
+      githubUserID,
+      coderUsername: core2.getInput("coder-username") || undefined,
       coderTemplatePreset: core2.getInput("coder-template-preset") || undefined,
       commentOnIssue: core2.getBooleanInput("comment-on-issue")
     });
