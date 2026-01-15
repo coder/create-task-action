@@ -378,6 +378,76 @@ describe("CoderTaskAction", () => {
 		assertActionOutputs(parsedResult, true);
 	});
 
+	test("creates new task using direct coder-username (without github-user-id)", async () => {
+		// Setup - no user lookup needed when coder-username is provided directly
+		coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(
+			mockTemplate,
+		);
+		coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
+		coderClient.mockGetTask.mockResolvedValue(null);
+		coderClient.mockCreateTask.mockResolvedValue(mockTask);
+		coderClient.mockWaitForTaskActive.mockResolvedValue(undefined);
+
+		const inputs = createMockInputs({
+			githubUserID: undefined,
+			coderUsername: mockUser.username,
+		});
+		const action = new CoderTaskAction(
+			coderClient,
+			octokit as unknown as Octokit,
+			inputs,
+		);
+
+		// Execute
+		const result = await action.run();
+
+		// Verify - should NOT call any user lookup API when username is provided directly
+		expect(coderClient.mockGetCoderUserByGithubID).not.toHaveBeenCalled();
+		expect(coderClient.mockGetTask).toHaveBeenCalledWith(
+			mockUser.username,
+			mockTask.name,
+		);
+		expect(coderClient.mockCreateTask).toHaveBeenCalledWith(mockUser.username, {
+			name: mockTask.name,
+			template_version_id: mockTemplate.active_version_id,
+			template_version_preset_id: undefined,
+			input: inputs.coderTaskPrompt,
+		});
+
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult, true);
+	});
+
+	test("prefers coder-username over github-user-id when both provided", async () => {
+		// Setup - no user lookup needed when coder-username is provided directly
+		coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(
+			mockTemplate,
+		);
+		coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
+		coderClient.mockGetTask.mockResolvedValue(null);
+		coderClient.mockCreateTask.mockResolvedValue(mockTask);
+		coderClient.mockWaitForTaskActive.mockResolvedValue(undefined);
+
+		const inputs = createMockInputs({
+			githubUserID: 12345,
+			coderUsername: mockUser.username,
+		});
+		const action = new CoderTaskAction(
+			coderClient,
+			octokit as unknown as Octokit,
+			inputs,
+		);
+
+		// Execute
+		const result = await action.run();
+
+		// Verify - should use coderUsername directly, skipping GitHub ID lookup
+		expect(coderClient.mockGetCoderUserByGithubID).not.toHaveBeenCalled();
+
+		const parsedResult = ActionOutputsSchema.parse(result);
+		assertActionOutputs(parsedResult, true);
+	});
+
 	test("sends prompt to existing task", async () => {
 		// Setup
 		coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);

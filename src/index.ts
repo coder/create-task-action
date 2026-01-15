@@ -7,6 +7,11 @@ import { ActionInputsSchema } from "./schemas";
 async function main() {
 	try {
 		// Parse and validate inputs
+		const githubUserIdInput = core.getInput("github-user-id");
+		const githubUserID = githubUserIdInput
+			? Number.parseInt(githubUserIdInput, 10)
+			: undefined;
+
 		const inputs = ActionInputsSchema.parse({
 			coderURL: core.getInput("coder-url", { required: true }),
 			coderToken: core.getInput("coder-token", { required: true }),
@@ -22,10 +27,8 @@ async function main() {
 			}),
 			githubIssueURL: core.getInput("github-issue-url", { required: true }),
 			githubToken: core.getInput("github-token", { required: true }),
-			githubUserID: Number.parseInt(
-				core.getInput("github-user-id", { required: true }),
-				10,
-			),
+			githubUserID,
+			coderUsername: core.getInput("coder-username") || undefined,
 			coderTemplatePreset: core.getInput("coder-template-preset") || undefined,
 			commentOnIssue: core.getBooleanInput("comment-on-issue"),
 		});

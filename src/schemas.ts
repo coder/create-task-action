@@ -10,7 +10,9 @@ export const ActionInputsSchema = z.object({
 	coderTemplateName: z.string().min(1),
 	githubIssueURL: z.string().url(),
 	githubToken: z.string(),
-	githubUserID: z.number().min(1),
+	// User identification - at least one must be provided (validated in action.ts)
+	githubUserID: z.number().min(1).optional(),
+	coderUsername: z.string().min(1).optional(),
 	// Optional
 	coderOrganization: z.string().min(1).optional().default("default"),
 	coderTaskNamePrefix: z.string().min(1).optional().default("gh"),
