@@ -17177,10 +17177,10 @@ var require_oidc_utils = __commonJS((exports2) => {
       return __awaiter(this, undefined, undefined, function* () {
         const httpclient = OidcClient.createHttpClient();
         const res = yield httpclient.getJson(id_token_url).catch((error) => {
-          throw new Error(`Failed to get ID Token. 
- 
+          throw new Error(`Failed to get ID Token.
+
         Error Code : ${error.statusCode}
- 
+
         Error Message: ${error.message}`);
         });
         const id_token = (_a = res.result) === null || _a === undefined ? undefined : _a.value;
@@ -26918,6 +26918,9 @@ class CoderTaskAction {
     }
   }
   async run() {
+    if (this.inputs.coderUsername && this.inputs.githubUserID) {
+      throw new Error("Both coder-username and github-user-id were provided. Please provide only one as the intent is unclear.");
+    }
     let coderUsername;
     if (this.inputs.coderUsername) {
       core.info(`Using provided Coder username: ${this.inputs.coderUsername}`);

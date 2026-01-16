@@ -104,6 +104,13 @@ export class CoderTaskAction {
 	 * Main action execution
 	 */
 	async run(): Promise<ActionOutputs> {
+		// Validate that exactly one of coderUsername or githubUserID is provided
+		if (this.inputs.coderUsername && this.inputs.githubUserID) {
+			throw new Error(
+				"Both coder-username and github-user-id were provided. Please provide only one as the intent is unclear.",
+			);
+		}
+
 		let coderUsername: string;
 		if (this.inputs.coderUsername) {
 			core.info(`Using provided Coder username: ${this.inputs.coderUsername}`);

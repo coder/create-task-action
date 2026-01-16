@@ -418,16 +418,7 @@ describe("CoderTaskAction", () => {
 		assertActionOutputs(parsedResult, true);
 	});
 
-	test("prefers coder-username over github-user-id when both provided", async () => {
-		// Setup - no user lookup needed when coder-username is provided directly
-		coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(
-			mockTemplate,
-		);
-		coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
-		coderClient.mockGetTask.mockResolvedValue(null);
-		coderClient.mockCreateTask.mockResolvedValue(mockTask);
-		coderClient.mockWaitForTaskActive.mockResolvedValue(undefined);
-
+	test("errors when both coder-username and github-user-id are provided", async () => {
 		const inputs = createMockInputs({
 			githubUserID: 12345,
 			coderUsername: mockUser.username,
@@ -438,14 +429,10 @@ describe("CoderTaskAction", () => {
 			inputs,
 		);
 
-		// Execute
-		const result = await action.run();
-
-		// Verify - should use coderUsername directly, skipping GitHub ID lookup
-		expect(coderClient.mockGetCoderUserByGithubID).not.toHaveBeenCalled();
-
-		const parsedResult = ActionOutputsSchema.parse(result);
-		assertActionOutputs(parsedResult, true);
+		// Execute & Verify - should throw due to ambiguous input
+		expect(action.run()).rejects.toThrow(
+			"Both coder-username and github-user-id were provided. Please provide only one to avoid ambiguity.",
+		);
 	});
 
 	test("throws error when neither coder-username nor github-user-id is provided", async () => {
