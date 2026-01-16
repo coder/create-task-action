@@ -418,7 +418,6 @@ describe("CoderTaskAction", () => {
 		assertActionOutputs(parsedResult, true);
 	});
 
-
 	test("sends prompt to existing task", async () => {
 		// Setup
 		coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
