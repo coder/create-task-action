@@ -104,18 +104,11 @@ export class CoderTaskAction {
 	 * Main action execution
 	 */
 	async run(): Promise<ActionOutputs> {
-		// Validate that exactly one of coderUsername or githubUserID is provided
-		if (this.inputs.coderUsername && this.inputs.githubUserID) {
-			throw new Error(
-				"Both coder-username and github-user-id were provided. Please provide only one as the intent is unclear.",
-			);
-		}
-
 		let coderUsername: string;
 		if (this.inputs.coderUsername) {
 			core.info(`Using provided Coder username: ${this.inputs.coderUsername}`);
 			coderUsername = this.inputs.coderUsername;
-		} else if (this.inputs.githubUserID) {
+		} else {
 			core.info(
 				`Looking up Coder user by GitHub user ID: ${this.inputs.githubUserID}`,
 			);
@@ -123,10 +116,6 @@ export class CoderTaskAction {
 				this.inputs.githubUserID,
 			);
 			coderUsername = coderUser.username;
-		} else {
-			throw new Error(
-				"Either coder-username or github-user-id must be provided",
-			);
 		}
 		const { githubOrg, githubRepo, githubIssueNumber } =
 			this.parseGithubIssueURL();

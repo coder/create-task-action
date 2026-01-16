@@ -26918,19 +26918,14 @@ class CoderTaskAction {
     }
   }
   async run() {
-    if (this.inputs.coderUsername && this.inputs.githubUserID) {
-      throw new Error("Both coder-username and github-user-id were provided. Please provide only one as the intent is unclear.");
-    }
     let coderUsername;
     if (this.inputs.coderUsername) {
       core.info(`Using provided Coder username: ${this.inputs.coderUsername}`);
       coderUsername = this.inputs.coderUsername;
-    } else if (this.inputs.githubUserID) {
+    } else {
       core.info(`Looking up Coder user by GitHub user ID: ${this.inputs.githubUserID}`);
       const coderUser = await this.coder.getCoderUserByGitHubId(this.inputs.githubUserID);
       coderUsername = coderUser.username;
-    } else {
-      throw new Error("Either coder-username or github-user-id must be provided");
     }
     const { githubOrg, githubRepo, githubIssueNumber } = this.parseGithubIssueURL();
     core.info(`GitHub owner: ${githubOrg}`);
@@ -27013,20 +27008,30 @@ class CoderTaskAction {
 }
 
 // src/schemas.ts
-var ActionInputsSchema = exports_external.object({
+var BaseInputsSchema = exports_external.object({
   coderTaskPrompt: exports_external.string().min(1),
   coderToken: exports_external.string().min(1),
   coderURL: exports_external.string().url(),
   coderTemplateName: exports_external.string().min(1),
   githubIssueURL: exports_external.string().url(),
   githubToken: exports_external.string(),
-  githubUserID: exports_external.number().min(1).optional(),
-  coderUsername: exports_external.string().min(1).optional(),
   coderOrganization: exports_external.string().min(1).optional().default("default"),
   coderTaskNamePrefix: exports_external.string().min(1).optional().default("gh"),
   coderTemplatePreset: exports_external.string().optional(),
   commentOnIssue: exports_external.boolean().default(true)
 });
+var WithGithubUserIDSchema = BaseInputsSchema.extend({
+  githubUserID: exports_external.number().min(1),
+  coderUsername: exports_external.undefined()
+});
+var WithCoderUsernameSchema = BaseInputsSchema.extend({
+  githubUserID: exports_external.undefined(),
+  coderUsername: exports_external.string().min(1)
+});
+var ActionInputsSchema = exports_external.union([
+  WithGithubUserIDSchema,
+  WithCoderUsernameSchema
+]);
 var ActionOutputsSchema = exports_external.object({
   coderUsername: exports_external.string(),
   taskName: exports_external.string(),

@@ -418,39 +418,6 @@ describe("CoderTaskAction", () => {
 		assertActionOutputs(parsedResult, true);
 	});
 
-	test("errors when both coder-username and github-user-id are provided", async () => {
-		const inputs = createMockInputs({
-			githubUserID: 12345,
-			coderUsername: mockUser.username,
-		});
-		const action = new CoderTaskAction(
-			coderClient,
-			octokit as unknown as Octokit,
-			inputs,
-		);
-
-		// Execute & Verify - should throw due to ambiguous input
-		expect(action.run()).rejects.toThrow(
-			"Both coder-username and github-user-id were provided. Please provide only one as the intent is unclear.",
-		);
-	});
-
-	test("throws error when neither coder-username nor github-user-id is provided", async () => {
-		const inputs = createMockInputs({
-			githubUserID: undefined,
-			coderUsername: undefined,
-		});
-		const action = new CoderTaskAction(
-			coderClient,
-			octokit as unknown as Octokit,
-			inputs,
-		);
-
-		// Execute & Verify
-		expect(action.run()).rejects.toThrow(
-			"Either coder-username or github-user-id must be provided",
-		);
-	});
 
 	test("sends prompt to existing task", async () => {
 		// Setup
