@@ -431,7 +431,7 @@ describe("CoderTaskAction", () => {
 
 		// Execute & Verify - should throw due to ambiguous input
 		expect(action.run()).rejects.toThrow(
-			"Both coder-username and github-user-id were provided. Please provide only one to avoid ambiguity.",
+			"Both coder-username and github-user-id were provided. Please provide only one as the intent is unclear.",
 		);
 	});
 
