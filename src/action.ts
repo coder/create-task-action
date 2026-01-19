@@ -104,16 +104,25 @@ export class CoderTaskAction {
 	 * Main action execution
 	 */
 	async run(): Promise<ActionOutputs> {
-		core.info(`GitHub user ID: ${this.inputs.githubUserID}`);
-		const coderUser = await this.coder.getCoderUserByGitHubId(
-			this.inputs.githubUserID,
-		);
+		let coderUsername: string;
+		if (this.inputs.coderUsername) {
+			core.info(`Using provided Coder username: ${this.inputs.coderUsername}`);
+			coderUsername = this.inputs.coderUsername;
+		} else {
+			core.info(
+				`Looking up Coder user by GitHub user ID: ${this.inputs.githubUserID}`,
+			);
+			const coderUser = await this.coder.getCoderUserByGitHubId(
+				this.inputs.githubUserID,
+			);
+			coderUsername = coderUser.username;
+		}
 		const { githubOrg, githubRepo, githubIssueNumber } =
 			this.parseGithubIssueURL();
 		core.info(`GitHub owner: ${githubOrg}`);
 		core.info(`GitHub repo: ${githubRepo}`);
 		core.info(`GitHub issue number: ${githubIssueNumber}`);
-		core.info(`Coder username: ${coderUser.username}`);
+		core.info(`Coder username: ${coderUsername}`);
 		if (!this.inputs.coderTaskNamePrefix || !this.inputs.githubIssueURL) {
 			throw new Error(
 				"either taskName or both taskNamePrefix and issueURL must be provided",
@@ -158,7 +167,7 @@ export class CoderTaskAction {
 		}
 		core.info(`Coder Template: Preset ID: ${presetID}`);
 
-		const existingTask = await this.coder.getTask(coderUser.username, taskName);
+		const existingTask = await this.coder.getTask(coderUsername, taskName);
 		if (existingTask) {
 			core.info(
 				`Coder Task: already exists: ${existingTask.name} (id: ${existingTask.id} status: ${existingTask.status})`,
@@ -170,7 +179,7 @@ export class CoderTaskAction {
 					`Coder Task: waiting for task ${existingTask.name} to become active...`,
 				);
 				await this.coder.waitForTaskActive(
-					coderUser.username,
+					coderUsername,
 					existingTask.id,
 					core.debug,
 					1_200_000,
@@ -180,15 +189,15 @@ export class CoderTaskAction {
 			core.info("Coder Task: Sending prompt to existing task...");
 			// Send prompt to existing task using the task ID (UUID)
 			await this.coder.sendTaskInput(
-				coderUser.username,
+				coderUsername,
 				existingTask.id,
 				this.inputs.coderTaskPrompt,
 			);
 			core.info("Coder Task: Prompt sent successfully");
 			return {
-				coderUsername: coderUser.username,
+				coderUsername,
 				taskName: existingTask.name,
-				taskUrl: this.generateTaskUrl(coderUser.username, existingTask.id),
+				taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
 				taskCreated: false,
 			};
 		}
@@ -201,13 +210,13 @@ export class CoderTaskAction {
 			input: this.inputs.coderTaskPrompt,
 		};
 		// Create new task
-		const createdTask = await this.coder.createTask(coderUser.username, req);
+		const createdTask = await this.coder.createTask(coderUsername, req);
 		core.info(
 			`Coder Task: created successfully (status: ${createdTask.status})`,
 		);
 
 		// 5. Generate task URL
-		const taskUrl = this.generateTaskUrl(coderUser.username, createdTask.id);
+		const taskUrl = this.generateTaskUrl(coderUsername, createdTask.id);
 		core.info(`Coder Task: URL: ${taskUrl}`);
 
 		// 6. Comment on issue if requested
@@ -226,8 +235,8 @@ export class CoderTaskAction {
 			core.info(`Skipping comment on issue (commentOnIssue is false)`);
 		}
 		return {
-			coderUsername: coderUser.username,
-			taskName: taskName,
+			coderUsername,
+			taskName,
 			taskUrl,
 			taskCreated: true,
 		};

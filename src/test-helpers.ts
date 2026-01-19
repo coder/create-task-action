@@ -119,7 +119,7 @@ export function createMockInputs(
 		githubUserID: 12345,
 		commentOnIssue: true, // default value from schema
 		...overrides,
-	};
+	} as ActionInputs;
 }
 
 /**

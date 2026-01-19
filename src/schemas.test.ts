@@ -34,7 +34,7 @@ describe("ActionInputsSchema", () => {
 		});
 
 		test("accepts all optional inputs", () => {
-			const input: ActionInputs = {
+			const input = {
 				...actionInputValid,
 				coderTemplatePreset: "custom",
 			};
@@ -54,7 +54,7 @@ describe("ActionInputsSchema", () => {
 			];
 
 			for (const url of validUrls) {
-				const input: ActionInputs = {
+				const input = {
 					...actionInputValid,
 					coderURL: url,
 				};
@@ -66,12 +66,12 @@ describe("ActionInputsSchema", () => {
 
 	describe("Invalid Input Cases", () => {
 		test("rejects missing required fields", () => {
-			const input = {} as ActionInputs;
+			const input = {};
 			expect(() => ActionInputsSchema.parse(input)).toThrow();
 		});
 
 		test("rejects invalid URL format for coderUrl", () => {
-			const input: ActionInputs = {
+			const input = {
 				...actionInputValid,
 				coderURL: "not-a-url",
 			};
@@ -79,7 +79,7 @@ describe("ActionInputsSchema", () => {
 		});
 
 		test("rejects invalid URL format for issueUrl", () => {
-			const input: ActionInputs = {
+			const input = {
 				...actionInputValid,
 				githubIssueURL: "not-a-url",
 			};
@@ -87,10 +87,61 @@ describe("ActionInputsSchema", () => {
 		});
 
 		test("rejects empty strings for required fields", () => {
-			const input: ActionInputs = {
+			const input = {
 				...actionInputValid,
 				coderToken: "",
 			};
+			expect(() => ActionInputsSchema.parse(input)).toThrow();
+		});
+	});
+
+	describe("User Identification (Union Validation)", () => {
+		test("accepts input with only githubUserID", () => {
+			const result = ActionInputsSchema.parse(actionInputValid);
+			expect(result.githubUserID).toBe(12345);
+			expect(result.coderUsername).toBeUndefined();
+		});
+
+		test("accepts input with only coderUsername", () => {
+			const { githubUserID: _, ...withoutGithubUserID } = actionInputValid;
+			const input = { ...withoutGithubUserID, coderUsername: "testuser" };
+			const result = ActionInputsSchema.parse(input);
+			expect(result.coderUsername).toBe("testuser");
+			expect(result.githubUserID).toBeUndefined();
+		});
+
+		test("rejects input with both githubUserID and coderUsername", () => {
+			const input = {
+				...actionInputValid,
+				coderUsername: "testuser",
+			};
+			expect(() => ActionInputsSchema.parse(input)).toThrow();
+		});
+
+		test("rejects input with neither githubUserID nor coderUsername", () => {
+			const { githubUserID: _, ...withoutGithubUserID } = actionInputValid;
+			expect(() => ActionInputsSchema.parse(withoutGithubUserID)).toThrow();
+		});
+
+		test("rejects githubUserID of 0", () => {
+			const input = {
+				...actionInputValid,
+				githubUserID: 0,
+			};
+			expect(() => ActionInputsSchema.parse(input)).toThrow();
+		});
+
+		test("rejects negative githubUserID", () => {
+			const input = {
+				...actionInputValid,
+				githubUserID: -1,
+			};
+			expect(() => ActionInputsSchema.parse(input)).toThrow();
+		});
+
+		test("rejects empty coderUsername", () => {
+			const { githubUserID: _, ...withoutGithubUserID } = actionInputValid;
+			const input = { ...withoutGithubUserID, coderUsername: "" };
 			expect(() => ActionInputsSchema.parse(input)).toThrow();
 		});
 	});

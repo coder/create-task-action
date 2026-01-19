@@ -33,8 +33,12 @@ inputs:
     required: true
 
   github-user-id:
-    description: "GitHub user ID to create task for"
-    required: true
+    description: "GitHub user ID to create task for. If provided, `coder-username` must not be set."
+    required: false
+
+  coder-username:
+    description: "Coder username to create task for. If provided, github-user-id must not be set. Useful for automated workflows without a triggering user."
+    required: false
 
   # Optional inputs
   coder-organization:
