@@ -4,8 +4,8 @@ This GitHub action starts a [Coder Task](https://coder.com/docs/ai-coder/tasks) 
 
 ## Overview
 
-- When creating a Coder task, you must specify the Github user ID as an input.
-- The action then queries the Coder deployment to find the Coder user associated with the given Github user ID.
+- When creating a Coder task, you must specify either a GitHub user ID or a Coder username as an input.
+- If a GitHub user ID is provided, the action queries the Coder deployment to find the Coder user associated with the given GitHub user ID.
   - Note that this requires the Coder deployment to be configured with [GitHub OAuth](https://coder.com/docs/admin/external-auth#configure-a-github-oauth-app) and for the Coder user to have linked their GitHub account.
   - If no corresponding Coder user is found, the action will fail.
 - The action will then create a [Coder Task](https://coder.com/docs/ai-coder/tasks) for the user with the given template and prompt.
@@ -68,11 +68,14 @@ yq -r '.inputs | to_entries[] | "| \(.key) | \(.value.description) | \(.value.re
 | coder-template-name    | Coder template to use for workspace     | true     | -         |
 | github-issue-url       | GitHub issue URL to link this task to   | true     | -         |
 | github-token           | GitHub token for API operations         | true     | -         |
-| github-user-id         | GitHub user ID to create task for       | true     | -         |
+| github-user-id         | GitHub user ID to create task for       | false    | -         |
+| coder-username         | Coder username to create task for       | false    | -         |
 | coder-organization     | Coder organization name                 | false    | "default" |
 | coder-task-name-prefix | Prefix for task name                    | false    | "gh"      |
 | coder-template-preset  | Template preset to use (optional)       | false    | -         |
 | comment-on-issue       | Whether to comment on the GitHub issue  | false    | true      |
+
+> **Note:** Either `github-user-id` or `coder-username` must be provided, but not both. Use `coder-username` for automated workflows (e.g., CI bots, scheduled jobs) that don't have a triggering GitHub user.
 
 ## Outputs
 
