@@ -26795,17 +26795,30 @@ class RealCoderClient {
       body: JSON.stringify({ input })
     });
   }
-  async waitForTaskActive(owner, taskId, logFn, timeoutMs = 120000) {
+  async waitForTaskActive(owner, taskId, logFn, timeoutMs = 120000, stableIdleMs = 30000, pollIntervalMs = 2000) {
     const startTime = Date.now();
-    const pollIntervalMs = 2000;
+    let idleSince = null;
     while (Date.now() - startTime < timeoutMs) {
       const task = await this.getTaskById(owner, taskId);
       if (task.status === "error") {
         throw new CoderAPIError(`Task entered error state while waiting for active state`, 500, task);
       }
-      logFn(`waitForTaskActive: task_id: ${taskId} status: ${task.status} current_state: ${task.current_state?.state}`);
-      if (task.status === "active" && task.current_state && task.current_state.state === "idle") {
-        return;
+      const isIdle = task.status === "active" && task.current_state?.state === "idle";
+      if (isIdle) {
+        if (idleSince === null) {
+          idleSince = Date.now();
+        }
+        const idleDuration = Date.now() - idleSince;
+        logFn(`waitForTaskActive: task_id: ${taskId} status: ${task.status} current_state: ${task.current_state?.state} idle_for: ${Math.round(idleDuration / 1000)}s/${Math.round(stableIdleMs / 1000)}s`);
+        if (idleDuration >= stableIdleMs) {
+          return;
+        }
+      } else {
+        if (idleSince !== null) {
+          logFn(`waitForTaskActive: task_id: ${taskId} idle interrupted after ${Math.round((Date.now() - idleSince) / 1000)}s (status: ${task.status} current_state: ${task.current_state?.state}), resetting idle timer`);
+        }
+        idleSince = null;
+        logFn(`waitForTaskActive: task_id: ${taskId} status: ${task.status} current_state: ${task.current_state?.state}`);
       }
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }

@@ -33,6 +33,8 @@ export interface CoderClient {
 		taskId: TaskId,
 		logFn: (msg: string) => void,
 		timeoutMs?: number,
+		stableIdleMs?: number,
+		pollIntervalMs?: number,
 	): Promise<void>;
 }
 
@@ -207,16 +209,24 @@ export class RealCoderClient implements CoderClient {
 	}
 
 	/**
-	 * waitForTaskActive polls the task status until it reaches "active" state or times out.
+	 * waitForTaskActive polls the task status until it reaches "active" state
+	 * with a stable idle period, or times out.
+	 *
+	 * The agent can momentarily report "idle" before transitioning back to
+	 * "working" (e.g. between processing steps). To avoid sending input
+	 * during this window, we require the task to remain active+idle for
+	 * stableIdleMs consecutive milliseconds before returning.
 	 */
 	async waitForTaskActive(
 		owner: string,
 		taskId: TaskId,
 		logFn: (msg: string) => void,
 		timeoutMs = 120000, // 2 minutes default
+		stableIdleMs = 30000, // 30 seconds of continuous idle required
+		pollIntervalMs = 2000, // Poll every 2 seconds
 	): Promise<void> {
 		const startTime = Date.now();
-		const pollIntervalMs = 2000; // Poll every 2 seconds
+		let idleSince: number | null = null;
 
 		while (Date.now() - startTime < timeoutMs) {
 			const task = await this.getTaskById(owner, taskId);
@@ -228,15 +238,31 @@ export class RealCoderClient implements CoderClient {
 					task,
 				);
 			}
-			logFn(
-				`waitForTaskActive: task_id: ${taskId} status: ${task.status} current_state: ${task.current_state?.state}`,
-			);
-			if (
-				task.status === "active" &&
-				task.current_state &&
-				task.current_state.state === "idle"
-			) {
-				return;
+
+			const isIdle =
+				task.status === "active" && task.current_state?.state === "idle";
+
+			if (isIdle) {
+				if (idleSince === null) {
+					idleSince = Date.now();
+				}
+				const idleDuration = Date.now() - idleSince;
+				logFn(
+					`waitForTaskActive: task_id: ${taskId} status: ${task.status} current_state: ${task.current_state?.state} idle_for: ${Math.round(idleDuration / 1000)}s/${Math.round(stableIdleMs / 1000)}s`,
+				);
+				if (idleDuration >= stableIdleMs) {
+					return;
+				}
+			} else {
+				if (idleSince !== null) {
+					logFn(
+						`waitForTaskActive: task_id: ${taskId} idle interrupted after ${Math.round((Date.now() - idleSince) / 1000)}s (status: ${task.status} current_state: ${task.current_state?.state}), resetting idle timer`,
+					);
+				}
+				idleSince = null;
+				logFn(
+					`waitForTaskActive: task_id: ${taskId} status: ${task.status} current_state: ${task.current_state?.state}`,
+				);
 			}
 
 			// Wait before next poll

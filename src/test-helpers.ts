@@ -189,8 +189,17 @@ export class MockCoderClient implements CoderClient {
 		taskId: TaskId,
 		logFn: (msg: string) => void,
 		timeoutMs?: number,
+		stableIdleMs?: number,
+		pollIntervalMs?: number,
 	): Promise<void> {
-		return this.mockWaitForTaskActive(owner, taskId, logFn, timeoutMs);
+		return this.mockWaitForTaskActive(
+			owner,
+			taskId,
+			logFn,
+			timeoutMs,
+			stableIdleMs,
+			pollIntervalMs,
+		);
 	}
 }
 
