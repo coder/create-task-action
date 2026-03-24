@@ -300,7 +300,7 @@ describe("CoderClient", () => {
 	});
 
 	describe("waitForTaskActive", () => {
-		test("returns immediately when task is already active", async () => {
+		test("returns after stable idle period when task is already active and idle", async () => {
 			const readyTask: ExperimentalCoderSDKTask = {
 				...mockTask,
 				status: "active",
@@ -310,12 +310,15 @@ describe("CoderClient", () => {
 			};
 			mockFetch.mockResolvedValue(createMockResponse(readyTask));
 
-			expect(
+			// With stableIdleMs=0, should return after first idle observation.
+			await expect(
 				client.waitForTaskActive(
 					mockUser.username,
 					mockTask.id,
 					console.log,
-					1000,
+					10000,
+					0,
+					10,
 				),
 			).resolves.toBeUndefined();
 
@@ -329,7 +332,7 @@ describe("CoderClient", () => {
 			);
 		});
 
-		test("polls until task becomes active", async () => {
+		test("polls until task becomes active and idle", async () => {
 			const pendingTask: ExperimentalCoderSDKTask = {
 				...mockTask,
 				status: "pending",
@@ -351,16 +354,85 @@ describe("CoderClient", () => {
 				.mockResolvedValueOnce(createMockResponse(activeTask))
 				.mockResolvedValueOnce(createMockResponse(readyTask));
 
-			expect(
+			await expect(
 				client.waitForTaskActive(
 					mockUser.username,
 					mockTask.id,
 					console.log,
-					7000,
+					10000,
+					0, // No stable idle requirement for this test.
+					10,
 				),
 			).resolves.toBeUndefined();
 
 			expect(mockFetch).toHaveBeenCalledTimes(3);
+		});
+
+		test("resets idle timer when state flips back to working", async () => {
+			const idleTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "active",
+				current_state: { state: "idle" },
+			};
+			const workingTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "active",
+				current_state: { state: "working" },
+			};
+
+			// idle -> working -> idle... (stable idle reached after
+			// stableIdleMs elapses on the second idle stretch).
+			// Use mockResolvedValue for the tail so polls after the
+			// "once" entries keep returning idle.
+			mockFetch
+				.mockResolvedValueOnce(createMockResponse(idleTask)) // idle timer starts
+				.mockResolvedValueOnce(createMockResponse(workingTask)) // idle interrupted, timer reset
+				.mockResolvedValue(createMockResponse(idleTask)); // idle resumes, stays idle
+
+			const logs: string[] = [];
+			await client.waitForTaskActive(
+				mockUser.username,
+				mockTask.id,
+				(msg) => logs.push(msg),
+				30000,
+				50, // Short stable idle for test speed.
+				10, // Short poll interval.
+			);
+
+			// Must have polled at least 3 times (idle, working, idle...).
+			expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(3);
+			// Verify the idle interruption was logged.
+			expect(logs.some((l) => l.includes("idle interrupted"))).toBe(true);
+		});
+
+		test("requires stable idle period before returning", async () => {
+			// This test verifies that even with immediate idle, the function
+			// does NOT return until stableIdleMs has elapsed.
+			const idleTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "active",
+				current_state: { state: "idle" },
+			};
+			mockFetch.mockResolvedValue(createMockResponse(idleTask));
+
+			// Use a short stable idle so the test finishes quickly but
+			// still requires multiple polls.
+			const stableMs = 100;
+			const start = Date.now();
+			await client.waitForTaskActive(
+				mockUser.username,
+				mockTask.id,
+				console.log,
+				10000,
+				stableMs,
+				10, // Short poll interval.
+			);
+			const elapsed = Date.now() - start;
+
+			// Must have waited at least stableMs.
+			expect(elapsed).toBeGreaterThanOrEqual(stableMs);
+			// Must have polled more than once.
+			expect(mockFetch.mock.calls.length).toBeGreaterThan(1);
 		});
 
 		test("throws error when task enters error state", async () => {
