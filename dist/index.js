@@ -26781,7 +26781,15 @@ class RealCoderClient {
     const startTime = Date.now();
     let idleSince = null;
     while (Date.now() - startTime < timeoutMs) {
-      const task = await this.getTaskById(owner, taskId);
+      let task;
+      try {
+        task = await this.getTaskById(owner, taskId);
+      } catch (error) {
+        if (error instanceof CoderAPIError && error.statusCode === 404) {
+          throw new TaskDeletedError(taskId);
+        }
+        throw error;
+      }
       if (task.status === "error") {
         throw new CoderAPIError(`Task entered error state while waiting for active state`, 500, task);
       }
@@ -26862,6 +26870,15 @@ var ExperimentalCoderSDKTaskSchema = exports_external.object({
 var ExperimentalCoderSDKTaskListResponseSchema = exports_external.object({
   tasks: exports_external.array(ExperimentalCoderSDKTaskSchema)
 });
+
+class TaskDeletedError extends Error {
+  taskId;
+  constructor(taskId) {
+    super(`Task ${taskId} was deleted while waiting for it to become active`);
+    this.taskId = taskId;
+    this.name = "TaskDeletedError";
+  }
+}
 
 class CoderAPIError extends Error {
   statusCode;
@@ -26979,17 +26996,25 @@ class CoderTaskAction {
     const existingTask = await this.coder.getTask(coderUsername, taskName);
     if (existingTask) {
       core.info(`Coder Task: already exists: ${existingTask.name} (id: ${existingTask.id} status: ${existingTask.status})`);
-      core.info(`Coder Task: waiting for task ${existingTask.name} to become active and idle...`);
-      await this.coder.waitForTaskActive(coderUsername, existingTask.id, core.debug, 1200000);
-      core.info("Coder Task: Sending prompt to existing task...");
-      await this.coder.sendTaskInput(coderUsername, existingTask.id, this.inputs.coderTaskPrompt);
-      core.info("Coder Task: Prompt sent successfully");
-      return {
-        coderUsername,
-        taskName: existingTask.name,
-        taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
-        taskCreated: false
-      };
+      try {
+        core.info(`Coder Task: waiting for task ${existingTask.name} to become active and idle...`);
+        await this.coder.waitForTaskActive(coderUsername, existingTask.id, core.debug, 1200000);
+        core.info("Coder Task: Sending prompt to existing task...");
+        await this.coder.sendTaskInput(coderUsername, existingTask.id, this.inputs.coderTaskPrompt);
+        core.info("Coder Task: Prompt sent successfully");
+        return {
+          coderUsername,
+          taskName: existingTask.name,
+          taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
+          taskCreated: false
+        };
+      } catch (error2) {
+        if (error2 instanceof TaskDeletedError) {
+          core.warning(`Existing task '${existingTask.name}' was deleted (likely by a concurrent run). Creating a new task.`);
+        } else {
+          throw error2;
+        }
+      }
     }
     core.info("Creating Coder task...");
     const req = {

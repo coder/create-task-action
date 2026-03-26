@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { CoderTaskAction } from "./action";
 import type { Octokit } from "./action";
 import { ActionOutputsSchema, type ActionOutputs } from "./schemas";
+import { TaskDeletedError, TaskIdSchema, TaskNameSchema } from "./coder-client";
 import {
 	MockCoderClient,
 	createMockOctokit,
@@ -694,6 +695,66 @@ describe("CoderTaskAction", () => {
 			);
 
 			expect(action.run()).rejects.toThrow("Permission denied");
+		});
+
+		test("creates new task when existing task is deleted during waitForTaskActive", async () => {
+			const newTask = {
+				...mockTask,
+				id: TaskIdSchema.parse("aa0e8400-e29b-41d4-a716-446655440000"),
+				name: TaskNameSchema.parse("task-123"),
+			};
+
+			// Setup: existing task found, but waitForTaskActive throws TaskDeletedError
+			coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
+			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(
+				mockTemplate,
+			);
+			coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
+			coderClient.mockGetTask.mockResolvedValue(mockTask);
+			coderClient.mockWaitForTaskActive.mockRejectedValue(
+				new TaskDeletedError(mockTask.id),
+			);
+			coderClient.mockCreateTask.mockResolvedValue(newTask);
+			octokit.rest.issues.listComments.mockResolvedValue({
+				data: [],
+			} as ReturnType<typeof octokit.rest.issues.listComments>);
+			octokit.rest.issues.createComment.mockResolvedValue(
+				{} as ReturnType<typeof octokit.rest.issues.createComment>,
+			);
+
+			const inputs = createMockInputs({
+				githubUserID: 12345,
+			});
+			const action = new CoderTaskAction(
+				coderClient,
+				octokit as unknown as Octokit,
+				inputs,
+			);
+
+			// Execute
+			const result = await action.run();
+
+			// Verify: should have fallen through to create a new task
+			expect(coderClient.mockGetTask).toHaveBeenCalledWith(
+				mockUser.username,
+				mockTask.name,
+			);
+			expect(coderClient.mockWaitForTaskActive).toHaveBeenCalled();
+			expect(coderClient.mockCreateTask).toHaveBeenCalledWith(
+				mockUser.username,
+				{
+					name: mockTask.name,
+					template_version_id: mockTemplate.active_version_id,
+					template_version_preset_id: undefined,
+					input: inputs.coderTaskPrompt,
+				},
+			);
+			// Should NOT have tried to send input to the deleted task
+			expect(coderClient.mockSendTaskInput).not.toHaveBeenCalled();
+
+			const parsedResult = ActionOutputsSchema.parse(result);
+			expect(parsedResult.taskCreated).toBe(true);
+			expect(parsedResult.coderUsername).toBe(mockUser.username);
 		});
 	});
 
