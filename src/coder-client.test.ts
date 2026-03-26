@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach, mock } from "bun:test";
 import {
 	RealCoderClient,
 	CoderAPIError,
+	TaskDeletedError,
 	type ExperimentalCoderSDKTask,
 } from "./coder-client";
 import {
@@ -485,6 +486,47 @@ describe("CoderClient", () => {
 					1,
 				),
 			).rejects.toThrow("Timeout waiting for task to reach active state");
+		});
+
+		test("throws TaskDeletedError when task is deleted during polling (404)", async () => {
+			const pendingTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "pending",
+			};
+
+			// First poll succeeds (task exists), second poll returns 404
+			// (task was deleted by concurrent run).
+			mockFetch
+				.mockResolvedValueOnce(createMockResponse(pendingTask))
+				.mockResolvedValueOnce(
+					createMockResponse(
+						{
+							message:
+								"Resource not found or you do not have access to this resource",
+						},
+						{ ok: false, status: 404, statusText: "Not Found" },
+					),
+				);
+
+			const err = await client
+				.waitForTaskActive(
+					mockUser.username,
+					mockTask.id,
+					console.log,
+					10000,
+					0,
+					10,
+				)
+				.catch((e: unknown) => e);
+
+			expect(err).toBeInstanceOf(TaskDeletedError);
+			expect((err as TaskDeletedError).message).toBe(
+				`Task ${mockTask.id} was deleted while waiting for it to become active`,
+			);
+			expect((err as TaskDeletedError).taskId).toBe(mockTask.id);
+
+			// Should have polled twice: first success, then 404.
+			expect(mockFetch).toHaveBeenCalledTimes(2);
 		});
 	});
 

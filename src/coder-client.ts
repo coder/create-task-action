@@ -229,7 +229,15 @@ export class RealCoderClient implements CoderClient {
 		let idleSince: number | null = null;
 
 		while (Date.now() - startTime < timeoutMs) {
-			const task = await this.getTaskById(owner, taskId);
+			let task: ExperimentalCoderSDKTask;
+			try {
+				task = await this.getTaskById(owner, taskId);
+			} catch (error) {
+				if (error instanceof CoderAPIError && error.statusCode === 404) {
+					throw new TaskDeletedError(taskId);
+				}
+				throw error;
+			}
 
 			if (task.status === "error") {
 				throw new CoderAPIError(
@@ -386,6 +394,15 @@ export const ExperimentalCoderSDKTaskListResponseSchema = z.object({
 export type ExperimentalCoderSDKTaskListResponse = z.infer<
 	typeof ExperimentalCoderSDKTaskListResponseSchema
 >;
+
+// TaskDeletedError is thrown when a task is deleted while waiting
+// for it to become active (e.g. by a concurrent workflow run).
+export class TaskDeletedError extends Error {
+	constructor(public readonly taskId: TaskId) {
+		super(`Task ${taskId} was deleted while waiting for it to become active`);
+		this.name = "TaskDeletedError";
+	}
+}
 
 // CoderAPIError is a custom error class for Coder API errors.
 export class CoderAPIError extends Error {

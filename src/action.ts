@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import {
 	type ExperimentalCoderSDKCreateTaskRequest,
 	TaskNameSchema,
+	TaskDeletedError,
 	type CoderClient,
 	type TaskId,
 } from "./coder-client";
@@ -173,34 +174,45 @@ export class CoderTaskAction {
 				`Coder Task: already exists: ${existingTask.name} (id: ${existingTask.id} status: ${existingTask.status})`,
 			);
 
-			// Wait for task to become active and idle before sending
-			// input. The agent may be in "working" state even when the
-			// task status is "active", and sending input in that state
-			// causes 409/502 errors.
-			core.info(
-				`Coder Task: waiting for task ${existingTask.name} to become active and idle...`,
-			);
-			await this.coder.waitForTaskActive(
-				coderUsername,
-				existingTask.id,
-				core.debug,
-				1_200_000,
-			);
+			try {
+				// Wait for task to become active and idle before sending
+				// input. The agent may be in "working" state even when
+				// the task status is "active", and sending input in that
+				// state causes 409/502 errors.
+				core.info(
+					`Coder Task: waiting for task ${existingTask.name} to become active and idle...`,
+				);
+				await this.coder.waitForTaskActive(
+					coderUsername,
+					existingTask.id,
+					core.debug,
+					1_200_000,
+				);
 
-			core.info("Coder Task: Sending prompt to existing task...");
-			// Send prompt to existing task using the task ID (UUID)
-			await this.coder.sendTaskInput(
-				coderUsername,
-				existingTask.id,
-				this.inputs.coderTaskPrompt,
-			);
-			core.info("Coder Task: Prompt sent successfully");
-			return {
-				coderUsername,
-				taskName: existingTask.name,
-				taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
-				taskCreated: false,
-			};
+				core.info("Coder Task: Sending prompt to existing task...");
+				// Send prompt to existing task using the task ID (UUID)
+				await this.coder.sendTaskInput(
+					coderUsername,
+					existingTask.id,
+					this.inputs.coderTaskPrompt,
+				);
+				core.info("Coder Task: Prompt sent successfully");
+				return {
+					coderUsername,
+					taskName: existingTask.name,
+					taskUrl: this.generateTaskUrl(coderUsername, existingTask.id),
+					taskCreated: false,
+				};
+			} catch (error) {
+				if (error instanceof TaskDeletedError) {
+					core.warning(
+						`Existing task '${existingTask.name}' was deleted (likely by a concurrent run). Creating a new task.`,
+					);
+					// Fall through to task creation below.
+				} else {
+					throw error;
+				}
+			}
 		}
 		core.info("Creating Coder task...");
 
