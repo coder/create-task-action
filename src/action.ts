@@ -2,7 +2,8 @@ import * as core from "@actions/core";
 import {
 	type ExperimentalCoderSDKCreateTaskRequest,
 	TaskNameSchema,
-	TaskDeletedError,
+	TaskNotFoundError,
+	CoderAPIError,
 	type CoderClient,
 	type TaskId,
 } from "./coder-client";
@@ -204,9 +205,12 @@ export class CoderTaskAction {
 					taskCreated: false,
 				};
 			} catch (error) {
-				if (error instanceof TaskDeletedError) {
+				if (
+					error instanceof TaskNotFoundError ||
+					(error instanceof CoderAPIError && error.statusCode === 404)
+				) {
 					core.warning(
-						`Existing task '${existingTask.name}' was deleted (likely by a concurrent run). Creating a new task.`,
+						`Lost contact with task '${existingTask.name}' (404 during polling). Creating a new task.`,
 					);
 					// Fall through to task creation below.
 				} else {

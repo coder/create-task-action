@@ -227,6 +227,7 @@ export class RealCoderClient implements CoderClient {
 	): Promise<void> {
 		const startTime = Date.now();
 		let idleSince: number | null = null;
+		let consecutive404s = 0;
 
 		while (Date.now() - startTime < timeoutMs) {
 			let task: ExperimentalCoderSDKTask;
@@ -234,10 +235,18 @@ export class RealCoderClient implements CoderClient {
 				task = await this.getTaskById(owner, taskId);
 			} catch (error) {
 				if (error instanceof CoderAPIError && error.statusCode === 404) {
-					throw new TaskDeletedError(taskId);
+					consecutive404s++;
+					if (consecutive404s >= 2) {
+						throw new TaskNotFoundError(taskId);
+					}
+					logFn(`waitForTaskActive: task_id: ${taskId} transient 404 (${consecutive404s}/2), will retry`);
+					await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+					continue;
 				}
 				throw error;
 			}
+
+			consecutive404s = 0;
 
 			if (task.status === "error") {
 				throw new CoderAPIError(
@@ -395,12 +404,13 @@ export type ExperimentalCoderSDKTaskListResponse = z.infer<
 	typeof ExperimentalCoderSDKTaskListResponseSchema
 >;
 
-// TaskDeletedError is thrown when a task is deleted while waiting
-// for it to become active (e.g. by a concurrent workflow run).
-export class TaskDeletedError extends Error {
+// TaskNotFoundError is thrown when a task returns 404 during
+// polling in waitForTaskActive (e.g. deleted by a concurrent
+// workflow run, or lost due to a permissions change).
+export class TaskNotFoundError extends Error {
 	constructor(public readonly taskId: TaskId) {
-		super(`Task ${taskId} was deleted while waiting for it to become active`);
-		this.name = "TaskDeletedError";
+		super(`Task ${taskId} returned 404 during polling`);
+		this.name = "TaskNotFoundError";
 	}
 }
 
