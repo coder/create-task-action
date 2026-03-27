@@ -2,7 +2,12 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { CoderTaskAction } from "./action";
 import type { Octokit } from "./action";
 import { ActionOutputsSchema, type ActionOutputs } from "./schemas";
-import { TaskNotFoundError, CoderAPIError, TaskIdSchema, TaskNameSchema } from "./coder-client";
+import {
+	TaskNotFoundError,
+	CoderAPIError,
+	TaskIdSchema,
+	TaskNameSchema,
+} from "./coder-client";
 import {
 	MockCoderClient,
 	createMockOctokit,
@@ -766,7 +771,9 @@ describe("CoderTaskAction", () => {
 			};
 
 			coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
-			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(mockTemplate);
+			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(
+				mockTemplate,
+			);
 			coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
 			coderClient.mockGetTask.mockResolvedValue(mockTask);
 			coderClient.mockWaitForTaskActive.mockResolvedValue(undefined);
@@ -802,7 +809,9 @@ describe("CoderTaskAction", () => {
 
 		test("re-throws non-404 errors from waitForTaskActive", async () => {
 			coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
-			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(mockTemplate);
+			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(
+				mockTemplate,
+			);
 			coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
 			coderClient.mockGetTask.mockResolvedValue(mockTask);
 			coderClient.mockWaitForTaskActive.mockRejectedValue(

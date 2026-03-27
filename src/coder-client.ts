@@ -239,7 +239,9 @@ export class RealCoderClient implements CoderClient {
 					if (consecutive404s >= 2) {
 						throw new TaskNotFoundError(taskId);
 					}
-					logFn(`waitForTaskActive: task_id: ${taskId} transient 404 (${consecutive404s}/2), will retry`);
+					logFn(
+						`waitForTaskActive: task_id: ${taskId} transient 404 (${consecutive404s}/2), will retry`,
+					);
 					await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 					continue;
 				}
