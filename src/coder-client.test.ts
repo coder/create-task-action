@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, mock } from "bun:test";
 import {
 	RealCoderClient,
 	CoderAPIError,
-	TaskDeletedError,
+	TaskNotFoundError,
 	type ExperimentalCoderSDKTask,
 } from "./coder-client";
 import {
@@ -488,16 +488,61 @@ describe("CoderClient", () => {
 			).rejects.toThrow("Timeout waiting for task to reach active state");
 		});
 
-		test("throws TaskDeletedError when task is deleted during polling (404)", async () => {
+		test("tolerates a single transient 404 and continues polling", async () => {
+			const pendingTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "pending",
+			};
+			const readyTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "active",
+				current_state: { state: "idle" },
+			};
+
+			// Poll 1: pending (ok). Poll 2: transient 404. Poll 3: active+idle (ok).
+			mockFetch
+				.mockResolvedValueOnce(createMockResponse(pendingTask))
+				.mockResolvedValueOnce(
+					createMockResponse(
+						{ message: "Not Found" },
+						{ ok: false, status: 404, statusText: "Not Found" },
+					),
+				)
+				.mockResolvedValueOnce(createMockResponse(readyTask));
+
+			// Should resolve successfully — one 404 is tolerated.
+			await expect(
+				client.waitForTaskActive(
+					mockUser.username,
+					mockTask.id,
+					console.log,
+					10000,
+					0,
+					10,
+				),
+			).resolves.toBeUndefined();
+
+			expect(mockFetch).toHaveBeenCalledTimes(3);
+		});
+
+		test("throws TaskNotFoundError when task returns 404 during polling", async () => {
 			const pendingTask: ExperimentalCoderSDKTask = {
 				...mockTask,
 				status: "pending",
 			};
 
-			// First poll succeeds (task exists), second poll returns 404
-			// (task was deleted by concurrent run).
+			// First poll succeeds, then two consecutive 404s trigger the error.
 			mockFetch
 				.mockResolvedValueOnce(createMockResponse(pendingTask))
+				.mockResolvedValueOnce(
+					createMockResponse(
+						{
+							message:
+								"Resource not found or you do not have access to this resource",
+						},
+						{ ok: false, status: 404, statusText: "Not Found" },
+					),
+				)
 				.mockResolvedValueOnce(
 					createMockResponse(
 						{
@@ -519,14 +564,46 @@ describe("CoderClient", () => {
 				)
 				.catch((e: unknown) => e);
 
-			expect(err).toBeInstanceOf(TaskDeletedError);
-			expect((err as TaskDeletedError).message).toBe(
-				`Task ${mockTask.id} was deleted while waiting for it to become active`,
+			expect(err).toBeInstanceOf(TaskNotFoundError);
+			expect((err as TaskNotFoundError).message).toBe(
+				`Task ${mockTask.id} returned 404 during polling`,
 			);
-			expect((err as TaskDeletedError).taskId).toBe(mockTask.id);
+			expect((err as TaskNotFoundError).taskId).toBe(mockTask.id);
 
-			// Should have polled twice: first success, then 404.
-			expect(mockFetch).toHaveBeenCalledTimes(2);
+			// Should have polled three times: first success, then two 404s.
+			expect(mockFetch).toHaveBeenCalledTimes(3);
+		});
+
+		test("propagates non-404 errors from getTaskById during polling", async () => {
+			const pendingTask: ExperimentalCoderSDKTask = {
+				...mockTask,
+				status: "pending",
+			};
+
+			// First poll succeeds, second poll returns 500.
+			mockFetch
+				.mockResolvedValueOnce(createMockResponse(pendingTask))
+				.mockResolvedValueOnce(
+					createMockResponse(
+						{ message: "Internal Server Error" },
+						{ ok: false, status: 500, statusText: "Internal Server Error" },
+					),
+				);
+
+			const err = await client
+				.waitForTaskActive(
+					mockUser.username,
+					mockTask.id,
+					console.log,
+					10000,
+					0,
+					10,
+				)
+				.catch((e: unknown) => e);
+
+			expect(err).toBeInstanceOf(CoderAPIError);
+			expect(err).not.toBeInstanceOf(TaskNotFoundError);
+			expect((err as CoderAPIError).statusCode).toBe(500);
 		});
 	});
 

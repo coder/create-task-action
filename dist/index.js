@@ -26780,16 +26780,24 @@ class RealCoderClient {
   async waitForTaskActive(owner, taskId, logFn, timeoutMs = 120000, stableIdleMs = 30000, pollIntervalMs = 2000) {
     const startTime = Date.now();
     let idleSince = null;
+    let consecutive404s = 0;
     while (Date.now() - startTime < timeoutMs) {
       let task;
       try {
         task = await this.getTaskById(owner, taskId);
       } catch (error) {
         if (error instanceof CoderAPIError && error.statusCode === 404) {
-          throw new TaskDeletedError(taskId);
+          consecutive404s++;
+          if (consecutive404s >= 2) {
+            throw new TaskNotFoundError(taskId);
+          }
+          logFn(`waitForTaskActive: task_id: ${taskId} transient 404 (${consecutive404s}/2), will retry`);
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+          continue;
         }
         throw error;
       }
+      consecutive404s = 0;
       if (task.status === "error") {
         throw new CoderAPIError(`Task entered error state while waiting for active state`, 500, task);
       }
@@ -26871,12 +26879,12 @@ var ExperimentalCoderSDKTaskListResponseSchema = exports_external.object({
   tasks: exports_external.array(ExperimentalCoderSDKTaskSchema)
 });
 
-class TaskDeletedError extends Error {
+class TaskNotFoundError extends Error {
   taskId;
   constructor(taskId) {
-    super(`Task ${taskId} was deleted while waiting for it to become active`);
+    super(`Task ${taskId} returned 404 during polling`);
     this.taskId = taskId;
-    this.name = "TaskDeletedError";
+    this.name = "TaskNotFoundError";
   }
 }
 
@@ -27009,8 +27017,8 @@ class CoderTaskAction {
           taskCreated: false
         };
       } catch (error2) {
-        if (error2 instanceof TaskDeletedError) {
-          core.warning(`Existing task '${existingTask.name}' was deleted (likely by a concurrent run). Creating a new task.`);
+        if (error2 instanceof TaskNotFoundError || error2 instanceof CoderAPIError && error2.statusCode === 404) {
+          core.warning(`Lost contact with task '${existingTask.name}' (404 during polling). Creating a new task.`);
         } else {
           throw error2;
         }

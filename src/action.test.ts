@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { CoderTaskAction } from "./action";
 import type { Octokit } from "./action";
 import { ActionOutputsSchema, type ActionOutputs } from "./schemas";
-import { TaskDeletedError, TaskIdSchema, TaskNameSchema } from "./coder-client";
+import { TaskNotFoundError, CoderAPIError, TaskIdSchema, TaskNameSchema } from "./coder-client";
 import {
 	MockCoderClient,
 	createMockOctokit,
@@ -697,7 +697,7 @@ describe("CoderTaskAction", () => {
 			expect(action.run()).rejects.toThrow("Permission denied");
 		});
 
-		test("creates new task when existing task is deleted during waitForTaskActive", async () => {
+		test("creates new task when existing task returns 404 during waitForTaskActive", async () => {
 			const newTask = {
 				...mockTask,
 				id: TaskIdSchema.parse("aa0e8400-e29b-41d4-a716-446655440000"),
@@ -712,7 +712,7 @@ describe("CoderTaskAction", () => {
 			coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
 			coderClient.mockGetTask.mockResolvedValue(mockTask);
 			coderClient.mockWaitForTaskActive.mockRejectedValue(
-				new TaskDeletedError(mockTask.id),
+				new TaskNotFoundError(mockTask.id),
 			);
 			coderClient.mockCreateTask.mockResolvedValue(newTask);
 			octokit.rest.issues.listComments.mockResolvedValue({
@@ -755,6 +755,69 @@ describe("CoderTaskAction", () => {
 			const parsedResult = ActionOutputsSchema.parse(result);
 			expect(parsedResult.taskCreated).toBe(true);
 			expect(parsedResult.coderUsername).toBe(mockUser.username);
+			expect(parsedResult.taskUrl).toContain(newTask.id);
+		});
+
+		test("falls through to create new task when sendTaskInput returns 404", async () => {
+			const newTask = {
+				...mockTask,
+				id: TaskIdSchema.parse("bb0e8400-e29b-41d4-a716-446655440000"),
+				name: TaskNameSchema.parse("task-123"),
+			};
+
+			coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
+			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(mockTemplate);
+			coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
+			coderClient.mockGetTask.mockResolvedValue(mockTask);
+			coderClient.mockWaitForTaskActive.mockResolvedValue(undefined);
+			// sendTaskInput returns 404 — task was deleted after waitForTaskActive.
+			coderClient.mockSendTaskInput.mockRejectedValue(
+				new CoderAPIError("Not Found", 404),
+			);
+			coderClient.mockCreateTask.mockResolvedValue(newTask);
+			octokit.rest.issues.listComments.mockResolvedValue({
+				data: [],
+			} as ReturnType<typeof octokit.rest.issues.listComments>);
+			octokit.rest.issues.createComment.mockResolvedValue(
+				{} as ReturnType<typeof octokit.rest.issues.createComment>,
+			);
+
+			const inputs = createMockInputs({ githubUserID: 12345 });
+			const action = new CoderTaskAction(
+				coderClient,
+				octokit as unknown as Octokit,
+				inputs,
+			);
+
+			const result = await action.run();
+
+			// Should have fallen through to create a new task.
+			expect(coderClient.mockCreateTask).toHaveBeenCalled();
+			expect(coderClient.mockSendTaskInput).toHaveBeenCalled();
+
+			const parsedResult = ActionOutputsSchema.parse(result);
+			expect(parsedResult.taskCreated).toBe(true);
+			expect(parsedResult.taskUrl).toContain(newTask.id);
+		});
+
+		test("re-throws non-404 errors from waitForTaskActive", async () => {
+			coderClient.mockGetCoderUserByGithubID.mockResolvedValue(mockUser);
+			coderClient.mockGetTemplateByOrganizationAndName.mockResolvedValue(mockTemplate);
+			coderClient.mockGetTemplateVersionPresets.mockResolvedValue([]);
+			coderClient.mockGetTask.mockResolvedValue(mockTask);
+			coderClient.mockWaitForTaskActive.mockRejectedValue(
+				new CoderAPIError("Request Timeout", 408),
+			);
+
+			const inputs = createMockInputs({ githubUserID: 12345 });
+			const action = new CoderTaskAction(
+				coderClient,
+				octokit as unknown as Octokit,
+				inputs,
+			);
+
+			await expect(action.run()).rejects.toThrow("Request Timeout");
+			expect(coderClient.mockCreateTask).not.toHaveBeenCalled();
 		});
 	});
 
